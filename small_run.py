@@ -16,8 +16,8 @@ from pettingzoo import AECEnv
 from pettingzoo.classic.tictactoe.board import TTT_GAME_NOT_OVER, TTT_TIE, Board
 from pettingzoo.utils import AgentSelector, wrappers
 
-import supertictactoe
-from board import SuperTicTacToeBoard
+from supertictactoe import supertictactoe
+from utils.board import SuperTicTacToeBoard
 
 env = supertictactoe.env(render_mode="human")
 env.reset(42)

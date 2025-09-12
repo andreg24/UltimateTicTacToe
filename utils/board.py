@@ -88,6 +88,7 @@ class TicTacToeBoard:
 
 class SuperTicTacToeBoard:
 
+
     def __init__(self):
         # self.squares holds a flat representation of the super tic tac toe board
         # an empty board is [0, 0, 0, 0, 0, 0, 0, 0, 0].
@@ -97,6 +98,7 @@ class SuperTicTacToeBoard:
         # 0 1 2
         # 3 4 5
         # 6 7 8
+        # COULD START USING CELL AND GRID NOMENCLATURE INSTEAD
         self.super_squares = [0] * 9 # high level board
         self.squares = [0] * 81 # board accounting for all the possible squares
         self.sub_boards = [TicTacToeBoard() for _ in range(9)]

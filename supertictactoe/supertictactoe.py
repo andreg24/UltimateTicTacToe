@@ -13,7 +13,7 @@ from gymnasium.utils import EzPickle
 from pettingzoo import AECEnv
 from pettingzoo.utils import AgentSelector, wrappers
 
-from board import SuperTicTacToeBoard, Status
+from utils.board import SuperTicTacToeBoard, Status
 from utils.render_utils import get_image, get_font
 
 SCREEN_HEIGHT = 500
