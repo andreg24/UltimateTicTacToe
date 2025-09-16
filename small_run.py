@@ -1,25 +1,8 @@
 from __future__ import annotations
 
-import os
-from os import path as os_path
+from ultimatetictactoe import ultimatetictactoe
 
-from enum import Enum
-import random
-
-import gymnasium
-import numpy as np
-import pygame
-from gymnasium import spaces
-from gymnasium.utils import EzPickle
-
-from pettingzoo import AECEnv
-from pettingzoo.classic.tictactoe.board import TTT_GAME_NOT_OVER, TTT_TIE, Board
-from pettingzoo.utils import AgentSelector, wrappers
-
-from supertictactoe import supertictactoe
-from utils.board import SuperTicTacToeBoard
-
-env = supertictactoe.env(render_mode="human")
+env = ultimatetictactoe.env(render_mode="human")
 env.reset(42)
 c = 0
 for agent in env.agent_iter():

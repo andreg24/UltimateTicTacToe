@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import os
 
-import random
-
 import gymnasium
 import numpy as np
 import pygame
@@ -13,7 +11,7 @@ from gymnasium.utils import EzPickle
 from pettingzoo import AECEnv
 from pettingzoo.utils import AgentSelector, wrappers
 
-from utils.board import SuperTicTacToeBoard, Status
+from utils.board import UltimateTicTacToeBoard, Status
 from utils.render_utils import get_image, get_font
 
 SCREEN_HEIGHT = 500
@@ -33,16 +31,16 @@ class raw_env(AECEnv, EzPickle):
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "name": "supertictactoe_v3",
-        "is_parallelizable": False,
+        "is_parallelizable": True,
         "render_fps": 5,
     }
 
     def __init__(
-        self, render_mode: str | None = None, screen_height: int | None = SCREEN_HEIGHT
+        self, render_mode: str | None = None, screen_height: int | None = None
     ):
         super().__init__()
         EzPickle.__init__(self, render_mode, screen_height)
-        self.board = SuperTicTacToeBoard()
+        self.board = UltimateTicTacToeBoard()
 
         self.agents = ["player_1", "player_2"]
         self.possible_agents = self.agents[:]
@@ -69,14 +67,14 @@ class raw_env(AECEnv, EzPickle):
         self.agent_selection = self._agent_selector.reset()
 
         self.render_mode = render_mode
-        self.screen_height = screen_height
+        self.screen_height = screen_height if screen_height is not None else SCREEN_HEIGHT
         self.screen = None
 
         if self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
     def observe(self, agent):
-        board_vals = np.array(self.board.squares).reshape(9, 9) # TO DO
+        board_vals = np.array(self.board.cells).reshape(9, 9) # TO DO
         cur_player = self.possible_agents.index(agent)
         opp_player = (cur_player + 1) % 2
 
@@ -196,10 +194,8 @@ class raw_env(AECEnv, EzPickle):
             else:
                 return "circle"
 
-        squares = self.board.squares
-        super_squares = self.board.super_squares
-        board_state = list(map(get_symbol, squares))
-        super_board_state = list(map(get_symbol, super_squares))
+        board_state = list(map(get_symbol, self.board.cells))
+        super_board_state = list(map(get_symbol, self.board.super_cells))
 
         mark_pos = 0
         for x in range(9):
