@@ -64,7 +64,7 @@ class SubTicTacToeBoard:
         self.cells[pos] = player + 1
 
     def game_status(self):
-        """Return status (winner, TTT_TIE if no winner, or TTT_GAME_NOT_OVER)."""
+        """Return status"""
         for indices in WINNING_COMBINATIONS:
             states = [self.cells[idx] for idx in indices]
             if states == [1, 1, 1]:
@@ -84,7 +84,6 @@ class SubTicTacToeBoard:
     def legal_moves(self):
         """Return list of legal moves (as flat indices for spaces on the board)."""
         return [i for i, mark in enumerate(self.cells) if mark == 0]
-
 
 class UltimateTicTacToeBoard:
 

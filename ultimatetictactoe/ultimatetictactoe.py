@@ -20,6 +20,17 @@ BOARD_IMG = "board.jpg"
 CROSS_IMG = "cross.jpg"
 CIRCLE_IMG = "circle.jpg"
 
+def get_symbol(input):
+    if input == 0:
+        return None
+    elif input == 1:
+        return "cross"
+    elif input == 2:
+        return "circle"
+    else:
+        # tie
+        return None
+
 def env(**kwargs):
     env = raw_env(**kwargs)
     env = wrappers.TerminateIllegalWrapper(env, illegal_reward=-1)
@@ -50,7 +61,7 @@ class raw_env(AECEnv, EzPickle):
             i: spaces.Dict(
                 {
                     "observation": spaces.Box(
-                        low=0, high=1, shape=(9, 9, 2), dtype=np.int8
+                        low=0, high=1, shape=(2, 9, 9), dtype=np.int8
                     ),
                     "action_mask": spaces.Box(low=0, high=1, shape=(81,), dtype=np.int8),
                 }
@@ -74,30 +85,31 @@ class raw_env(AECEnv, EzPickle):
             self.clock = pygame.time.Clock()
 
     def observe(self, agent):
-        board_vals = np.array(self.board.cells).reshape(9, 9) # TO DO
+        board_vals = np.array(self.board.cells).reshape(9, 9)
         cur_player = self.possible_agents.index(agent)
         opp_player = (cur_player + 1) % 2
 
-        observation = np.empty((9, 9, 2), dtype=np.int8)
+        observation = np.empty((2, 9, 9), dtype=np.int8)
         # this will give a copy of the board that is 1 for player 1's
         # marks and zero for every other square, whether empty or not.
-        observation[:, :, 0] = np.equal(board_vals, cur_player + 1)
-        observation[:, :, 1] = np.equal(board_vals, opp_player + 1)
 
-        action_mask = self._get_mask(agent)
+        # agent based observation order
+        # observation[0, :, :] = np.equal(board_vals, cur_player + 1)
+        # observation[1, :, :] = np.equal(board_vals, opp_player + 1)
+        # fixed order
+        observation[0, :, :] = np.equal(board_vals, 1)
+        observation[1, :, :] = np.equal(board_vals, 2)
 
-        return {"observation": observation, "action_mask": action_mask}
+        return {"observation": observation, "action_mask": self._get_mask(agent)}
 
     def _get_mask(self, agent):
-        action_mask = np.zeros(81, dtype=np.int8)
-
         # Per the documentation, the mask of any agent other than the
         # currently selected one is all zeros.
-        if agent == self.agent_selection:
-            for i in self.board.legal_moves():
-                action_mask[i] = 1
+        mask = np.zeros(81, dtype=np.int8)
 
-        return action_mask
+        if agent == self.agent_selection:
+            mask[self.board.legal_moves()] = 1
+        return mask
 
     def observation_space(self, agent):
         return self.observation_spaces[agent]
@@ -170,33 +182,21 @@ class raw_env(AECEnv, EzPickle):
             )
             return
 
+         # --- Setup ---
         screen_height = self.screen_height
         screen_width = self.screen_height
+        tile_size = screen_height // 12
+        tile_size_big = screen_height // 4
 
-        # Setup dimensions for 'x' and 'o' marks
-        tile_size = int(screen_height / 12)
-        tile_size_big = int(screen_height / 4)
-
-        # Load and blit the board image for the game
+        # --- Draw board background ---
         board_img = get_image(os.path.join("img", "board.jpg"))
-        board_img = pygame.transform.scale(
-            board_img, (int(screen_width), int(screen_height))
-        )
-
+        board_img = pygame.transform.scale(board_img, (screen_width, screen_height))
         self.screen.blit(board_img, (0, 0))
-
-        # Load and blit actions for the game
-        def get_symbol(input):
-            if input == 0:
-                return None
-            elif input == 1:
-                return "cross"
-            else:
-                return "circle"
 
         board_state = list(map(get_symbol, self.board.cells))
         super_board_state = list(map(get_symbol, self.board.super_cells))
 
+        # --- Draw small marks (9x9) ---
         mark_pos = 0
         for x in range(9):
             for y in range(9):
@@ -213,8 +213,8 @@ class raw_env(AECEnv, EzPickle):
                 self.screen.blit(
                     mark_img,
                     (
-                        (screen_width / 8.8) * x + (screen_width / 190),
-                        (screen_width / 8.8) * y + (screen_height / 190),
+                        (screen_width / 8.8) * y + (screen_width / 190),
+                        (screen_width / 8.8) * x + (screen_height / 190),
                     ),
                 )
         # big symbols
@@ -234,8 +234,8 @@ class raw_env(AECEnv, EzPickle):
                 self.screen.blit(
                     mark_img,
                     (
-                        (screen_width / 2.9) * x + (screen_width / 30),
-                        (screen_width / 2.9) * y + (screen_height / 30),
+                        (screen_width / 2.9) * y + (screen_width / 30),
+                        (screen_width / 2.9) * x + (screen_height / 30),
                     ),
                 )
 
