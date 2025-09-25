@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from utils.board_utils import relative_to_absolute
+
 class SimplePolicy(nn.Module):
     """Network taking in input observations and outputting masked probability distributions for each possible action"""
 
@@ -27,21 +29,51 @@ class SimplePolicy(nn.Module):
         probs = self.softmax(masked_logits)
         return probs
 
+class RandomAgent:
+    """Agent that picks actions uniformly at random"""
+
+    def __init__(self, name, action_mask_enabled=True):
+        self.name = name
+        self.action_mask_enabled = action_mask_enabled
+    
+    def pick_action(self, env):
+        if self.action_mask_enabled:
+            action_mask = env.last()[0]['action_mask']
+            return env.action_space(self.name).sample(action_mask)
+        else:
+            return env.action_space(self.name).sample()
+
+class ManualAgent:
+    """Agent that picks actions uniformly at random"""
+
+    def __init__(self, name, action_mask_enabled=True):
+        self.name = name
+        self.action_mask_enabled = action_mask_enabled
+    
+    def pick_action(self, env):
+        action = input("insert position: ")
+        super_pos, sub_pos = action.split(' ')
+        super_pos = int(super_pos)
+        sub_pos = int(sub_pos)
+        action = relative_to_absolute(super_pos, sub_pos)
+        return action
+
+
 class NeuralAgent:
-    """TODO"""
+    """Agent with a neural network evaluating policy(action/state)"""
 
     def __init__(
         self, 
         name, 
-        policy_net, 
-        optimizer,
-        device,
+        policy_net = None, 
+        optimizer = None,
+        device = None,
         mode = 'train'
     ):
         self.name = name
-        self.policy_net = policy_net
-        self.optimizer = optimizer
-        self.device = device
+        self.policy_net = policy_net if not None else SimplePolicy()
+        self.optimizer = optimizer if not None else torch.optim.Adam(self.policy_net.parameter(), lr=1e-3)
+        self.device = device if not None else torch.device('cpu')
         self.mode = mode
 
     def pick_action(self, obs: torch.Tensor):

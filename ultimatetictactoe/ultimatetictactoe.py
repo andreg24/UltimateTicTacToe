@@ -92,10 +92,14 @@ class raw_env(AECEnv, EzPickle):
         if self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
+        # TODO in the future
         # history
         self.board_history = [] # TODO
         self.actions_history = [] # TODO
         self.num_moves = 0 # TODO
+
+        # stats
+        self.status = None
 
     def observe(self, agent):
         # last() calls this function
@@ -146,7 +150,7 @@ class raw_env(AECEnv, EzPickle):
                 winner = status.value - 1  # either TTT_PLAYER1_WIN or TTT_PLAYER2_WIN
                 loser = winner ^ 1  # 0 -> 1; 1 -> 0
                 self.rewards[self.agents[winner]] = 1
-                self.rewards[self.agents[loser]] = 1
+                self.rewards[self.agents[loser]] = -1
 
             # once either play wins or there is a draw, game over, both players are done
             self.terminations = {a: True for a in self.agents}
