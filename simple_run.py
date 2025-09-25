@@ -1,4 +1,5 @@
-"""Small script to run a random Super Tic Tac Toe game"""
+"""Small script to run the environment with random agents"""
+
 from __future__ import annotations
 from ultimatetictactoe import ultimatetictactoe
 
