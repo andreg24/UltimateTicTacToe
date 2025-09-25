@@ -1,12 +1,11 @@
 import numpy as np
 from PIL import Image
 
-import supertictactoe.supertictactoe
-
+import ultimatetictactoe.ultimatetictactoe
 
 def gif_from_simulation(path_name, duration):
     
-    env = supertictactoe.env(render_mode="rgb_array")
+    env = ultimatetictactoe.env(render_mode="rgb_array")
     env.reset(42)
 
     imgs_np = []
