@@ -11,6 +11,10 @@ class SimplePolicy(nn.Module):
 
         if net is None:
             self.net = nn.Sequential(
+                nn.Conv2d(3, 3, 7, padding=3),
+                nn.ReLU(),
+                nn.Conv2d(3, 3, 5, padding=2),
+                nn.ReLU(),
                 nn.Conv2d(3, 3, 3, padding=1),
                 nn.ReLU(),
                 nn.Flatten(),
@@ -71,9 +75,9 @@ class NeuralAgent:
         mode = 'train'
     ):
         self.name = name
-        self.policy_net = policy_net if not None else SimplePolicy()
-        self.optimizer = optimizer if not None else torch.optim.Adam(self.policy_net.parameter(), lr=1e-3)
-        self.device = device if not None else torch.device('cpu')
+        self.policy_net = policy_net if policy_net is not None else SimplePolicy()
+        self.optimizer = optimizer if optimizer is not None else torch.optim.Adam(self.policy_net.parameters(), lr=1e-3)
+        self.device = device if device is not None else torch.device('cpu')
         self.mode = mode
 
     def pick_action(self, obs: torch.Tensor):

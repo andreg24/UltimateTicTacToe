@@ -12,6 +12,7 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import AgentSelector, wrappers
 
 from utils.board import UltimateTicTacToeBoard, Status
+from utils.board_utils import relative_to_absolute
 from utils.render_utils import get_image, get_font
 
 DEFAULT_BOARD_SIZE = 500
@@ -94,6 +95,7 @@ class raw_env(AECEnv, EzPickle):
 
         # TODO in the future
         # history
+        self.last_action = None
         self.board_history = [] # TODO
         self.actions_history = [] # TODO
         self.num_moves = 0 # TODO
@@ -145,7 +147,8 @@ class raw_env(AECEnv, EzPickle):
         status = self.board.game_status()
         if status != Status.GAME_NOT_OVER:
             if status == Status.TIE:
-                pass
+                self.rewards[self.agents[0]] = -0.5
+                self.rewards[self.agents[1]] = -0.5
             else:
                 winner = status.value - 1  # either TTT_PLAYER1_WIN or TTT_PLAYER2_WIN
                 loser = winner ^ 1  # 0 -> 1; 1 -> 0
@@ -157,6 +160,7 @@ class raw_env(AECEnv, EzPickle):
             self._accumulate_rewards()
 
         self.agent_selection = self._agent_selector.next()
+        self.last_action = action
 
         if self.render_mode == "human":
             self.render()
@@ -177,6 +181,7 @@ class raw_env(AECEnv, EzPickle):
         self.board_history = []
         self.actions_history = []
         self.num_moves = 0
+        self.last_action = None
 
         if self.render_mode is not None and self.screen is None:
             pygame.init()
@@ -226,7 +231,11 @@ class raw_env(AECEnv, EzPickle):
                     continue
 
                 mark_img = get_image(os.path.join("img", mark + ".png"))
-                mark_img.set_alpha(100)
+                if self.last_action is not None and self.last_action == mark_pos-1:
+                    pass
+                else:
+                    mark_img.set_alpha(100)
+
                 mark_img = pygame.transform.scale(mark_img, (tile_size, tile_size))
 
                 self.screen.blit(
