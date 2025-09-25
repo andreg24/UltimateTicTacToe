@@ -14,18 +14,18 @@ from pettingzoo.utils import AgentSelector, wrappers
 from utils.board import UltimateTicTacToeBoard, Status
 from utils.render_utils import get_image, get_font
 
-SCREEN_HEIGHT = 500
+DEFAULT_BOARD_SIZE = 500
 
 BOARD_IMG = "board.jpg"
 CROSS_IMG = "cross.jpg"
 CIRCLE_IMG = "circle.jpg"
 
-def get_symbol(input):
-    if input == 0:
+def get_symbol(value):
+    if value == 0:
         return None
-    elif input == 1:
+    elif value == 1:
         return "cross"
-    elif input == 2:
+    elif value == 2:
         return "circle"
     else:
         # tie
@@ -41,66 +41,77 @@ def env(**kwargs):
 class raw_env(AECEnv, EzPickle):
     metadata = {
         "render_modes": ["human", "rgb_array"],
-        "name": "supertictactoe_v3",
-        "is_parallelizable": True,
-        "render_fps": 5,
+        "name": "supertictactoe_v0",
+        "is_parallelizable": False,
+        "render_fps": 2,
     }
 
     def __init__(
-        self, render_mode: str | None = None, screen_height: int | None = None
+        self, render_mode: str | None = None, board_size: int | None = None
     ):
+        EzPickle.__init__(self, render_mode, board_size if board_size is not None else DEFAULT_BOARD_SIZE)
         super().__init__()
-        EzPickle.__init__(self, render_mode, screen_height)
+
         self.board = UltimateTicTacToeBoard()
 
+        # ---agents---
         self.agents = ["player_1", "player_2"]
-        self.possible_agents = self.agents[:]
-
-        self.action_spaces = {i: spaces.Discrete(81) for i in self.agents}
-        self.observation_spaces = {
-            i: spaces.Dict(
-                {
-                    "observation": spaces.Box(
-                        low=0, high=1, shape=(2, 9, 9), dtype=np.int8
-                    ),
-                    "action_mask": spaces.Box(low=0, high=1, shape=(81,), dtype=np.int8),
-                }
-            )
-            for i in self.agents
-        }
-
-        self.rewards = {i: 0 for i in self.agents}
-        self.terminations = {i: False for i in self.agents}
-        self.truncations = {i: False for i in self.agents}
-        self.infos = {i: {} for i in self.agents}
-
+        self.possible_agents = self.agents[:] # PettingZoo requirement
         self._agent_selector = AgentSelector(self.agents)
         self.agent_selection = self._agent_selector.reset()
 
+        # ---spaces---
+        self.action_spaces = {name: spaces.Discrete(81) for name in self.agents}
+        self.observation_spaces = {
+            a: spaces.Dict({
+                    "observation": spaces.Box(
+                        low=0, high=1, shape=(2, 9, 9), dtype=np.int8
+                    ),
+                    "action_mask": spaces.Box(
+                        low=0, high=1, shape=(81,), dtype=np.int8
+                    ),
+                    "turn": spaces.Discrete(2)
+                })
+            for a in self.agents
+        }
+
+        # ---returns---
+        self.rewards = {a: 0.0 for a in self.agents} # not accessed by last()
+        self.terminations = {a: False for a in self.agents}
+        self.truncations = {a: False for a in self.agents}
+        self.infos = {a: {} for a in self.agents}
+
+        # ---rendering--
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.screen_height = screen_height if screen_height is not None else SCREEN_HEIGHT
+        self.board_size = board_size if board_size is not None else DEFAULT_BOARD_SIZE
         self.screen = None
+
+        # other render related things TO DO
 
         if self.render_mode == "human":
             self.clock = pygame.time.Clock()
 
+        # history
+        self.board_history = [] # TODO
+        self.actions_history = [] # TODO
+        self.num_moves = 0 # TODO
+
     def observe(self, agent):
+        # last() calls this function
         board_vals = np.array(self.board.cells).reshape(9, 9)
-        cur_player = self.possible_agents.index(agent)
-        opp_player = (cur_player + 1) % 2
 
         observation = np.empty((2, 9, 9), dtype=np.int8)
-        # this will give a copy of the board that is 1 for player 1's
-        # marks and zero for every other square, whether empty or not.
 
-        # agent based observation order
+        # previous version
+        # cur_player = self.possible_agents.index(agent)
+        # opp_player = (cur_player + 1) % 2
         # observation[0, :, :] = np.equal(board_vals, cur_player + 1)
         # observation[1, :, :] = np.equal(board_vals, opp_player + 1)
-        # fixed order
         observation[0, :, :] = np.equal(board_vals, 1)
         observation[1, :, :] = np.equal(board_vals, 2)
 
-        return {"observation": observation, "action_mask": self._get_mask(agent)}
+        return {"observation": observation, "action_mask": self._get_mask(agent), "turn": self.agents.index(self.agent_selection)}
 
     def _get_mask(self, agent):
         # Per the documentation, the mask of any agent other than the
@@ -125,7 +136,7 @@ class raw_env(AECEnv, EzPickle):
         ):
             return self._was_dead_step(action)
 
-        self.board.play_turn(self.agents.index(self.agent_selection), action)
+        self.board.play_turn(self.agents.index(self.agent_selection), int(action))
 
         status = self.board.game_status()
         if status != Status.GAME_NOT_OVER:
@@ -134,11 +145,11 @@ class raw_env(AECEnv, EzPickle):
             else:
                 winner = status.value - 1  # either TTT_PLAYER1_WIN or TTT_PLAYER2_WIN
                 loser = winner ^ 1  # 0 -> 1; 1 -> 0
-                self.rewards[self.agents[winner]] += 1
-                self.rewards[self.agents[loser]] -= 1
+                self.rewards[self.agents[winner]] = 1
+                self.rewards[self.agents[loser]] = 1
 
             # once either play wins or there is a draw, game over, both players are done
-            self.terminations = {i: True for i in self.agents}
+            self.terminations = {a: True for a in self.agents}
             self._accumulate_rewards()
 
         self.agent_selection = self._agent_selector.next()
@@ -147,28 +158,32 @@ class raw_env(AECEnv, EzPickle):
             self.render()
 
     def reset(self, seed=None, options=None):
-        self.board.reset()
+        self.board = UltimateTicTacToeBoard()
 
         self.agents = self.possible_agents[:]
-        self.rewards = {i: 0 for i in self.agents}
-        self._cumulative_rewards = {i: 0 for i in self.agents}
-        self.terminations = {i: False for i in self.agents}
-        self.truncations = {i: False for i in self.agents}
-        self.infos = {i: {} for i in self.agents}
-        # selects the first agent
         self._agent_selector.reinit(self.agents)
         self.agent_selection = self._agent_selector.reset()
+
+        self.rewards = {name: 0 for name in self.agents}
+        self._cumulative_rewards = {name: 0 for name in self.agents}
+        self.terminations = {name: False for name in self.agents}
+        self.truncations = {name: False for name in self.agents}
+        self.infos = {name: {} for name in self.agents}
+
+        self.board_history = []
+        self.actions_history = []
+        self.num_moves = 0
 
         if self.render_mode is not None and self.screen is None:
             pygame.init()
 
         if self.render_mode == "human":
             self.screen = pygame.display.set_mode(
-                (self.screen_height, self.screen_height)
+                (self.board_size, self.board_size)
             )
             pygame.display.set_caption("Super Tic-Tac-Toe")
         elif self.render_mode == "rgb_array":
-            self.screen = pygame.Surface((self.screen_height, self.screen_height))
+            self.screen = pygame.Surface((self.board_size, self.board_size))
 
     def close(self):
         if self.screen is not None:
@@ -181,16 +196,16 @@ class raw_env(AECEnv, EzPickle):
                 "You are calling render method without specifying any render mode."
             )
             return
+        # elif self.render_mode in {"human", "rgb_array"}:
+        #     return self._render_gui()
 
          # --- Setup ---
-        screen_height = self.screen_height
-        screen_width = self.screen_height
-        tile_size = screen_height // 12
-        tile_size_big = screen_height // 4
+        tile_size = self.board_size // 12
+        tile_size_big = self.board_size // 4
 
         # --- Draw board background ---
         board_img = get_image(os.path.join("img", "board.jpg"))
-        board_img = pygame.transform.scale(board_img, (screen_width, screen_height))
+        board_img = pygame.transform.scale(board_img, (self.board_size, self.board_size))
         self.screen.blit(board_img, (0, 0))
 
         board_state = list(map(get_symbol, self.board.cells))
@@ -213,8 +228,8 @@ class raw_env(AECEnv, EzPickle):
                 self.screen.blit(
                     mark_img,
                     (
-                        (screen_width / 8.8) * y + (screen_width / 190),
-                        (screen_width / 8.8) * x + (screen_height / 190),
+                        (self.board_size / 8.8) * y + (self.board_size / 190),
+                        (self.board_size / 8.8) * x + (self.board_size / 190),
                     ),
                 )
         # big symbols
@@ -234,8 +249,8 @@ class raw_env(AECEnv, EzPickle):
                 self.screen.blit(
                     mark_img,
                     (
-                        (screen_width / 2.9) * y + (screen_width / 30),
-                        (screen_width / 2.9) * x + (screen_height / 30),
+                        (self.board_size / 2.9) * y + (self.board_size / 30),
+                        (self.board_size / 2.9) * x + (self.board_size / 30),
                     ),
                 )
 
@@ -250,3 +265,33 @@ class raw_env(AECEnv, EzPickle):
             if self.render_mode == "rgb_array"
             else None
         )
+
+    # TODO
+    # def _render_gui(self):
+    #     if self.screen is None:
+    #         pygame.init()
+
+    #         if self.render_mode == "human":
+    #             pygame.display.set_caption("Ultimate Tic-Tac-Toe")
+    #             self.screen = pygame.display.set_mode(self.board_size)
+    #             self.screen = pygame.display.set_mode(self.board_size)
+    #         elif self.render_mode == "rgb_array":
+    #             self.screen = pygame.Surface(self.board_size)
+
+    #     self.screen.blit(self.bg_image, (0, 0))
+    #     for square, piece in self.board.piece_map().items():
+    #         pos_x = square % 8 * self.cell_size[0]
+    #         pos_y = (
+    #             self.BOARD_SIZE[1] - (square // 8 + 1) * self.cell_size[1]
+    #         )  # offset because pygame display is flipped
+    #         piece_name = chess.piece_name(piece.piece_type)
+    #         piece_img = self.piece_images[piece_name][piece.color]
+    #         self.screen.blit(piece_img, (pos_x, pos_y))
+
+    #     if self.render_mode == "human":
+    #         pygame.display.update()
+    #         self.clock.tick(self.metadata["render_fps"])
+    #     elif self.render_mode == "rgb_array":
+    #         return np.transpose(
+    #             np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+    #         )

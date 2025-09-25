@@ -2,17 +2,11 @@ from __future__ import annotations
 
 from ultimatetictactoe import ultimatetictactoe
 
-# import torch
-from torch import nn
-
 import random
 
 env = ultimatetictactoe.env(render_mode="human")
 env.reset(42)
-c = 0
 for agent in env.agent_iter():
-    print(c)
-    c += 1
     observation, reward, termination, truncation, info = env.last()
 
     if termination or truncation:

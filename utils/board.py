@@ -117,7 +117,7 @@ class UltimateTicTacToeBoard:
         self.current_pos = -1 # -1 indicates free choice
         self.current_player = 0
 
-    def play_turn(self, player, pos):
+    def play_turn(self, player: int, pos: int):
         """Place a mark by the player in the spot given.
 
         The following are required for a move to be valid:
@@ -143,7 +143,7 @@ class UltimateTicTacToeBoard:
         self.current_pos = sub_pos if self.super_cells[sub_pos] == 0 else -1
         self.current_player = (self.current_player + 1) % 2 # 0 -> 1, 1->0
 
-    def is_valid_move(self, player, pos):
+    def is_valid_move(self, player: int, pos: int):
         # correct player
         if player != self.current_player:
             return False
