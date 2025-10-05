@@ -11,7 +11,7 @@ from gymnasium.utils import EzPickle
 from pettingzoo import AECEnv
 from pettingzoo.utils import AgentSelector, wrappers
 
-from utils.board import UltimateTicTacToeBoard, Status
+from utils.board import UltimateTicTacToeBoard, Status, BoardTransformation, BoardRotation, BoardReflection
 from utils.board_utils import relative_to_absolute
 from utils.render_utils import get_image, get_font
 
@@ -128,6 +128,9 @@ class raw_env(AECEnv, EzPickle):
             mask[self.board.legal_moves()] = 1
         return mask
 
+    def action_mask(self, agent):
+        return self._get_mask(agent)
+
     def observation_space(self, agent):
         return self.observation_spaces[agent]
 
@@ -147,8 +150,9 @@ class raw_env(AECEnv, EzPickle):
         status = self.board.game_status()
         if status != Status.GAME_NOT_OVER:
             if status == Status.TIE:
-                self.rewards[self.agents[0]] = -0.5
-                self.rewards[self.agents[1]] = -0.5
+                difference = self.board.super_cells.count(1) - self.board.super_cells.count(2)
+                self.rewards[self.agents[0]] = difference*0.1
+                self.rewards[self.agents[1]] = - difference*0.1
             else:
                 winner = status.value - 1  # either TTT_PLAYER1_WIN or TTT_PLAYER2_WIN
                 loser = winner ^ 1  # 0 -> 1; 1 -> 0
@@ -279,32 +283,7 @@ class raw_env(AECEnv, EzPickle):
             else None
         )
 
-    # TODO
-    # def _render_gui(self):
-    #     if self.screen is None:
-    #         pygame.init()
-
-    #         if self.render_mode == "human":
-    #             pygame.display.set_caption("Ultimate Tic-Tac-Toe")
-    #             self.screen = pygame.display.set_mode(self.board_size)
-    #             self.screen = pygame.display.set_mode(self.board_size)
-    #         elif self.render_mode == "rgb_array":
-    #             self.screen = pygame.Surface(self.board_size)
-
-    #     self.screen.blit(self.bg_image, (0, 0))
-    #     for square, piece in self.board.piece_map().items():
-    #         pos_x = square % 8 * self.cell_size[0]
-    #         pos_y = (
-    #             self.BOARD_SIZE[1] - (square // 8 + 1) * self.cell_size[1]
-    #         )  # offset because pygame display is flipped
-    #         piece_name = chess.piece_name(piece.piece_type)
-    #         piece_img = self.piece_images[piece_name][piece.color]
-    #         self.screen.blit(piece_img, (pos_x, pos_y))
-
-    #     if self.render_mode == "human":
-    #         pygame.display.update()
-    #         self.clock.tick(self.metadata["render_fps"])
-    #     elif self.render_mode == "rgb_array":
-    #         return np.transpose(
-    #             np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
-    #         )
+    def apply_transformation(self, transformation: BoardTransformation):
+        self.board.apply_transformation(transformation)
+        if self.last_action != -1:
+            self.last_action = transformation.pos_transform(self.last_action, 9)

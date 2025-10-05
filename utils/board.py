@@ -4,6 +4,8 @@ DOCSTRING TO DO
 from __future__ import annotations
 
 from enum import Enum
+import math
+from abc import ABC, abstractmethod
 
 import numpy as np
 from .board_utils import absolute_to_relative, relative_to_absolute
@@ -24,6 +26,180 @@ WINNING_COMBINATIONS = [
         (0, 4, 8),
         (2, 4, 6),
     ]
+
+# TRANSFORMATIONS
+class BoardTransformation(ABC):
+
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def grid_transform(self, grid, n, **kwargs):
+        pass
+
+    @abstractmethod
+    def pos_transform(self, pos, n, **kwargs):
+        pass
+
+    def board_transform(self, super_cells, cells, pos, **kwargs):
+        return self.grid_transform(super_cells, 3, **kwargs), self.grid_transform(cells, 9, **kwargs), self.pos_transform(pos, 3, **kwargs)
+
+class BoardRotation(BoardTransformation):
+
+    def __init__(self, angle):
+        assert angle in [90, 180, 270], "angle not valid"
+        self.angle = angle
+
+    def grid_transform(self, grid, n):
+        if n is None:
+            n = int(math.isqrt(len(grid)))
+        N = n*n
+
+        if self.angle == 0:
+            return grid[:]
+        
+        rotated_grid = [None] * N
+
+        for idx, val in enumerate(grid):
+            i, j = divmod(idx, n)  # row, col
+            if self.angle == 90:
+                new_idx = j * n + (n - 1 - i)
+            elif self.angle == 180:
+                new_idx = (n - 1 - i) * n + (n - 1 - j)
+            elif self.angle == 270:
+                new_idx = (n - 1 - j) * n + i
+            rotated_grid[new_idx] = val
+
+        return rotated_grid
+
+    def pos_transform(self, pos, n):
+        if self.angle == 0:
+            return pos
+        i, j = divmod(pos, n)  # row, col
+        if self.angle == 90:
+            return j * n + (n - 1 - i)
+        elif self.angle == 180:
+            return (n - 1 - i) * n + (n - 1 - j)
+        else:
+            return (n - 1 - j) * n + i
+    
+    def board_transform(self, super_cells, cells, pos):
+        return self.grid_transform(super_cells, 3), self.grid_transform(cells, 9), self.pos_transform(pos, 3)
+
+class BoardReflection(BoardTransformation):
+
+    def __init__(self, is_horizontal):
+        self.is_horizontal = is_horizontal
+
+    def grid_transform(self, grid, n):
+        if n is None:
+            n = int(math.isqrt(len(grid)))
+        N = n*n
+        
+        reflected_grid = [None] * N
+
+        for idx, val in enumerate(grid):
+            i, j = divmod(idx, n)  # row, col
+            if self.is_horizontal:
+                new_idx = i * n + (n - 1 - j)
+            else:
+                new_idx = (n - 1 - i) * n + j
+            reflected_grid[new_idx] = val
+
+        return reflected_grid
+
+    def pos_transform(self, pos, n):
+        i, j = divmod(pos, n)  # row, col
+        if self.is_horizontal:
+            return i * n + (n - 1 - j)
+        else:
+            return (n - 1 - i) * n + j
+
+    def board_transform(self, super_cells, cells, pos):
+        return self.grid_transform(super_cells, 3), self.grid_transform(cells, 9), self.pos_transform(pos, 3)
+
+def rotate_grid(grid, k=1, n=None):
+    """Rotate clockwise"""
+    if n is None:
+        N = len(grid)
+        n = int(math.isqrt(N))
+    else:
+        N = n*n
+    k %= 4
+    if k == 0:
+        return grid[:] # no rotatio
+    
+    rotated = [None] * N
+
+    for idx, val in enumerate(grid):
+        i, j = divmod(idx, n)  # row, col
+        if k == 1:   # 90° CW
+            new_idx = j * n + (n - 1 - i)
+        elif k == 2: # 180°
+            new_idx = (n - 1 - i) * n + (n - 1 - j)
+        elif k == 3: # 270° CW
+            new_idx = (n - 1 - j) * n + i
+        rotated[new_idx] = val
+
+    return rotated
+
+def rotate_pos_cw(pos, grid, k=1, n=None):
+    """Rotate clockwise"""
+    if n is None:
+        n = int(math.isqrt(len(grid)))
+
+    k %= 4
+    if k == 0:
+        return pos
+    
+    rotated_pos = None
+
+    i, j = divmod(pos, n)  # row, col
+    if k == 1:   # 90° CW
+        return j * n + (n - 1 - i)
+    elif k == 2: # 180°
+        return (n - 1 - i) * n + (n - 1 - j)
+    else: # 270° CW
+        return (n - 1 - j) * n + i
+
+def reflect_grid(grid, is_horizontal, n=None):
+    """k == 1 horizontal, k == -1 vertical"""
+    if n is None:
+        N = len(grid)
+        n = int(math.isqrt(N))
+    else:
+        N = n*n
+    
+    reflected = [None] * N
+
+    for idx, val in enumerate(grid):
+        i, j = divmod(idx, n)  # row, col
+        if is_horizontal:
+            new_idx = i * n + (n - 1 - j)
+        else:
+            new_idx = (n - 1 - i) * n + j
+        reflected[new_idx] = val
+
+    return reflected
+
+def reflect_pos(pos, grid, is_horizontal, n=None):
+    """k == 1 horizontal, k == -1 vertical"""
+    if n is None:
+        n = int(math.isqrt(len(grid)))
+
+    i, j = divmod(pos, n)  # row, col
+    if is_horizontal:
+        return i * n + (n - 1 - j)
+    else:
+        return (n - 1 - i) * n + j
+
+TRANSFORMATIONS = [
+    BoardRotation(90),
+    BoardRotation(180),
+    BoardRotation(270),
+    BoardReflection(True),
+    BoardReflection(False),
+]
 
 class SubTicTacToeBoard:
 
@@ -197,3 +373,13 @@ class UltimateTicTacToeBoard:
                 pos = relative_to_absolute(super_pos, sub_pos)
                 available_moves.append(pos)
         return available_moves
+
+    def apply_transformation(self, transformation):
+        self.super_cells, self.cells, self.current_pos = transformation.board_transform(self.super_cells, self.cells, self.current_pos)
+        self._propagate_to_sub_boards()
+
+    def _propagate_to_sub_boards(self):
+        cells_np = np.array(self.cells).reshape(9, 9)
+        for p in range(9):
+            i, j = divmod(p, 3)
+            self.sub_boards[p].cells = list(cells_np[i*3:(i+1)*3, j*3:(j+1)*3].flatten())
