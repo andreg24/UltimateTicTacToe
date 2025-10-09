@@ -73,6 +73,9 @@ class BoardRotation(BoardTransformation):
         return rotated_grid
 
     def pos_transform(self, pos, n):
+        if pos == -1:
+            return -1
+
         if self.angle == 0:
             return pos
         i, j = divmod(pos, n)  # row, col
@@ -109,6 +112,9 @@ class BoardReflection(BoardTransformation):
         return reflected_grid
 
     def pos_transform(self, pos, n):
+        if pos == -1:
+            return -1
+
         i, j = divmod(pos, n)  # row, col
         if self.is_horizontal:
             return i * n + (n - 1 - j)

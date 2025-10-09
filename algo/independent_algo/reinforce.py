@@ -101,7 +101,8 @@ class Trajectory:
         self.agent_1, self.agent_2 = self.agent_2, self.agent_1
 
 def generate_schedule(n, px, pt, max_semi_turn=15):
-    """Generates transformations schedule for n trajectories """
+    """Generates transformations schedule for n trajectories"""
+
     enable_transformation = np.random.binomial(1, px, (n,))
     use_transformation = np.random.randint(0, 5, (n,)) * enable_transformation
     transformation_turns = np.random.binomial(max_semi_turn, pt, (n,)) * enable_transformation * 2
@@ -152,3 +153,39 @@ def reinforce(env, agent_1, agent_2, num_episodes, gamma=0.99, update1 = True, u
                 reinforce_update(agent_1, trajectory['player_2'], gamma)
             if update2:
                 reinforce_update(agent_2, trajectory['player_1'], gamma)
+
+def compute_games(env, agent1, agent2, n, enable_swap=True):
+    """plays n games keeping roles fixed"""
+    trajectory = Trajectory(env, agent1, agent2)
+
+    results = np.zeros(3)
+    rewards = np.zeros(n)
+    rewards_count = {}
+    game_turns = np.zeros(n)
+
+    for i in range(n):
+        if enable_swap and i>0:
+            trajectory.swap_players()
+        trajectory.compute()
+        t = trajectory.trajectory
+        if not enable_swap or i%2==0:
+            reward = t['player_1']['rewards'][-1]
+        else:
+            reward = t['player_2']['rewards'][-1]
+
+        rewards[i] = reward
+        game_turns[i] = trajectory.turn
+
+        if reward not in rewards_count.keys():
+            rewards_count[reward] = 1
+        else:
+            rewards_count[reward] += 1
+
+        if reward == 1:
+            results[0] += 1
+        elif reward == -1:
+            results[1] += 1
+        else:
+            results[2] += 1
+    
+    return {'results': results*100/n, 'rewards': rewards, 'rewards_count': rewards_count, 'game_turns': game_turns}
